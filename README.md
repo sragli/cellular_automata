@@ -1,6 +1,8 @@
 # CellularAutomata
 
-Elixir module to create cellular automata.
+Elixir module to create elementary cellular automata.
+
+In the elementary CA, each rule maps the 8 possible neighborhood configurations (3 cells: left, center, right) to an output value. Since the states are binary, it means that altogether there are 256 rules.
 
 ## Installation
 
@@ -20,5 +22,6 @@ end
 ```elixir
 initial_state = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
 
+# Evolve the initial state in 20 steps using rule 30
 evolution = CellularAutomata.create(initial_state, 20, 30)
 ```
