@@ -1,31 +1,23 @@
 defmodule CellularAutomata do
   @moduledoc """
-  Module for creating 1D cellular automata.
+  Module for creating elementary cellular automata.
   """
 
-  @type binary_matrix :: list(list(integer()))
-
-  @rule30 %{
-    {1, 1, 1} => 0,
-    {1, 1, 0} => 0,
-    {1, 0, 1} => 0,
-    {1, 0, 0} => 1,
-    {0, 1, 1} => 1,
-    {0, 1, 0} => 1,
-    {0, 0, 1} => 1,
-    {0, 0, 0} => 0
-  }
+  @type binary_list :: list(0 | 1)
+  @type binary_matrix :: list(binary_list())
 
   @doc """
-  Shortcut to CA evolution using rule 30.
+  Shortcut to CA evolution using the specified CA rule.
 
   ## Parameters
   - `initial_state`: 2D matrix (list of lists) representing the initial state
   - `steps`: Number of steps in the evolution
+  - `rule_id`: Number of the CA rule
   """
-  @spec rule_30(binary_matrix(), non_neg_integer()) :: binary_matrix()
-  def rule_30(initial_state, steps) do
-    evolve(initial_state, steps, @rule30)
+  @spec create(binary_list(), non_neg_integer(), non_neg_integer()) :: binary_matrix()
+  def create(initial_state, steps, rule_id) do
+    rule = CellularAutomata.RuleGenerator.generate_rule(rule_id)
+    evolve(initial_state, steps, rule)
   end
 
   @doc """
@@ -36,7 +28,7 @@ defmodule CellularAutomata do
   - `steps`: Number of steps in the evolution
   - `rule`: Update rule (map of patterns (`{0 | 1, 0 | 1, 0 | 1}`) and next value (`0 | 1`))
   """
-  @spec evolve(binary_matrix(), non_neg_integer(), map()) :: binary_matrix()
+  @spec evolve(binary_list(), non_neg_integer(), map()) :: binary_matrix()
   def evolve(state, 0, _rule), do: [state]
 
   def evolve(state, steps, rule) do

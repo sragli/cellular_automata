@@ -20,5 +20,5 @@ end
 ```elixir
 initial_state = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]
 
-evolution = CellularAutomata.rule_30(initial_state, 20)
+evolution = CellularAutomata.create(initial_state, 20, 30)
 ```
