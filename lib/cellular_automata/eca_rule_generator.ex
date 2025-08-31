@@ -1,8 +1,12 @@
-defmodule CellularAutomata.RuleGenerator do
+defmodule CellularAutomata.ECARuleGenerator do
   @doc """
   Generates all 256 elementary cellular automaton rules.
   Returns a map where each key is a rule number (0-255) and each value is a map
   representing the rule's transition function.
+
+  In elementary CA, each rule maps the 8 possible neighborhood configurations
+  (3 cells: left, center, right) to an output value. Since the states are binary,
+  it means that altogether there are 256 rules.
   """
 
   @spec generate_all_rules() :: list(map())
