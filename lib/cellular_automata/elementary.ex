@@ -11,7 +11,8 @@ defmodule CellularAutomata.Elementary do
   - `steps`: Number of steps in the evolution
   - `rule_id`: Number of the CA rule
   """
-  @spec create(CellularAutomata.binary_list(), non_neg_integer(), non_neg_integer()) :: CellularAutomata.binary_matrix()
+  @spec create(CellularAutomata.binary_list(), non_neg_integer(), non_neg_integer()) ::
+          CellularAutomata.binary_matrix()
   def create(initial_state, steps, rule_id) do
     rule = CellularAutomata.ECARuleGenerator.generate_rule(rule_id)
     evolve(initial_state, steps, rule)
@@ -25,7 +26,8 @@ defmodule CellularAutomata.Elementary do
   - `steps`: Number of steps in the evolution
   - `rule`: Update rule (map of patterns (`{0 | 1, 0 | 1, 0 | 1}`) and next value (`0 | 1`))
   """
-  @spec evolve(CellularAutomata.binary_list(), non_neg_integer(), map()) :: CellularAutomata.binary_matrix()
+  @spec evolve(CellularAutomata.binary_list(), non_neg_integer(), map()) ::
+          CellularAutomata.binary_matrix()
   def evolve(state, 0, _rule), do: [state]
 
   def evolve(state, steps, rule) do
