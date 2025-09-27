@@ -1,7 +1,15 @@
 defmodule CellularAutomata.Analysis do
-  @doc "Hamming distance between two states (lists of equal length)."
-  def hamming_distance(a, b) when length(a) == length(b) do
-    Enum.zip(a, b)
+  @doc """
+  Hamming distance between two states (lists of equal length).
+
+  ## Parameters
+  - `s1`: CA state (list of binary numbers)
+  - `s2`: CA state (list of binary numbers)
+  """
+  @spec hamming_distance(CellularAutomata.binary_list(), CellularAutomata.binary_list()) ::
+          non_neg_integer()
+  def hamming_distance(s1, s2) when length(s1) == length(s2) do
+    Enum.zip(s1, s2)
     |> Enum.reduce(0, fn {x, y}, acc -> acc + if x == y, do: 0, else: 1 end)
   end
 
@@ -15,11 +23,13 @@ defmodule CellularAutomata.Analysis do
 
   Returns list of {t, λ(t)}.
   """
+  @spec lyapunov_exponent(CellularAutomata.binary_list(), CellularAutomata.binary_list()) ::
+          list({pos_integer(), number()})
   def lyapunov_exponent(ca1, ca2) when length(ca1) == length(ca2) do
     Enum.zip(ca1, ca2)
     |> Enum.with_index(1)
-    |> Enum.map(fn {{sa, sb}, t} ->
-      d = hamming_distance(sa, sb)
+    |> Enum.map(fn {{s1, s2}, t} ->
+      d = hamming_distance(s1, s2)
 
       {t, :math.log(d) / t}
     end)

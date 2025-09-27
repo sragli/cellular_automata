@@ -1,6 +1,12 @@
 # CellularAutomata
 
-Elixir module to create cellular automata.
+Elixir module to create and analyse cellular automata.
+
+## Features
+
+* `CellularAutomata.elementary/3`: Creates a 1D (Elementary) Cellular Automaton
+* `CellularAutomata.Analysis.hamming_distance/2`: Calculates Hamming-distance between two ECA states
+* `CellularAutomata.Analysis.lyapunov_exponent/2`: Calculates the Lyapunov exponent between states of two ECAs
 
 ## Installation
 
