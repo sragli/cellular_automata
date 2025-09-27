@@ -42,6 +42,6 @@ defmodule CellularAutomata.MixProject do
   end
 
   defp deps do
-    []
+    [{:bdm, "~> 0.3.1"}]
   end
 end

@@ -23,8 +23,8 @@ defmodule CellularAutomata.Analysis do
 
   Returns list of {t, λ(t)}.
   """
-  @spec lyapunov_exponent(CellularAutomata.binary_list(), CellularAutomata.binary_list()) ::
-          list({pos_integer(), number()})
+  @spec lyapunov_exponent(CellularAutomata.binary_matrix(), CellularAutomata.binary_matrix()) ::
+          list({pos_integer(), float()})
   def lyapunov_exponent(ca1, ca2) when length(ca1) == length(ca2) do
     Enum.zip(ca1, ca2)
     |> Enum.with_index(1)
@@ -33,5 +33,17 @@ defmodule CellularAutomata.Analysis do
 
       {t, :math.log(d) / t}
     end)
+  end
+
+  @doc """
+  Computes BDM (Block Decomposition Method) complexity of an ECA.
+
+  ## Parameters
+  - `ca`: ECA (list of states correspond to time evolution of the initial conditions)
+  """
+  @spec bdm_complexity(CellularAutomata.binary_matrix()) :: float()
+  def bdm_complexity(ca) do
+    bdm = BDM.new(2, 2, 3, :ignore)
+    BDM.compute(bdm, ca)
   end
 end
