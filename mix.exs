@@ -23,7 +23,7 @@ defmodule CellularAutomata.MixProject do
   end
 
   defp description() do
-    "Elixir module to create cellular automata."
+    "Elixir module to create and analyse cellular automata."
   end
 
   defp package() do

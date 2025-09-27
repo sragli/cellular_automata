@@ -6,13 +6,13 @@ defmodule CellularAutomata.Analysis do
   end
 
   @doc """
-  Computes finite-time exponents λ(t) = (1 / t) ln d(t) (with d(0) = 1), averaged over samples.
+  Computes finite-time exponents λ(t) = (1 / t) ln d(t).
 
   ## Parameters
-  - `ca1`: first ECA (list of states)
-  - `ca2`: second ECA (list of states)
-
   Both lists must have the same length and correspond to time evolution of two initial conditions.
+  - `ca1`: first ECA (list of states correspond to time evolution of the initial conditions)
+  - `ca2`: second ECA (list of states correspond to time evolution of the initial conditions)
+
   Returns list of {t, λ(t)}.
   """
   def lyapunov_exponent(ca1, ca2) when length(ca1) == length(ca2) do
