@@ -20,9 +20,11 @@ defmodule CellularAutomata do
 
   @doc """
   Each state of an Elementary Cellular Automaton can be described by a integer number,
-  in which, the number of bits and their positions correspond to the bits in a CA state.
-  Thus, any ECA can be represented by a list of integer numbers. This is a more compact
-  representation, better suited for comparing large numbers of states of different ECAs.
+  in which, the number of bits and their positions correspond to the bits in that
+  particular CA state.
+  Thus, any ECA can be represented by a list of non-negative integer numbers. This is a
+  more compact representation, better suited for comparing large numbers of states of
+  different ECAs.
   """
   @spec compact(binary_matrix()) :: list(non_neg_integer())
   def compact(ca) do
