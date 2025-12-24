@@ -17,4 +17,20 @@ defmodule CellularAutomata do
   def elementary(initial_state, steps, rule_id) do
     CellularAutomata.Elementary.create(initial_state, steps, rule_id)
   end
+
+  @doc """
+  Each state of an Elementary Cellular Automaton can be described by a integer number,
+  in which, the number of bits and their positions correspond to the bits in a CA state.
+  Thus, any ECA can be represented by a list of integer numbers. This is a more compact
+  representation, better suited for comparing large numbers of states of different ECAs.
+  """
+  @spec compact(binary_matrix()) :: list(non_neg_integer())
+  def compact(ca) do
+    ca
+    |> Enum.map(fn state  ->
+        state
+        |> Enum.join()
+        |> String.to_integer(2)
+      end)
+  end
 end
