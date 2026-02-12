@@ -6,3 +6,4 @@
 
 ### Changed
 - Updated version to 0.2.0
+- Removed ECA-specific restrictions from Hamming distance and Lyapunov exponent function definitions
