@@ -1,0 +1,8 @@
+## [0.2.0] - 2026-02-12
+
+### Added
+- New `CellularAutomata.FourColour` module for creating four-colour cellular automata
+- `CellularAutomata.four_colour/3` function to evolve four-colour CA using a custom rule map
+
+### Changed
+- Updated version to 0.2.0

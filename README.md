@@ -5,6 +5,7 @@ Elixir module to create and analyse cellular automata.
 ## Features
 
 * `CellularAutomata.elementary/3`: Creates a 1D (Elementary) Cellular Automaton
+* `CellularAutomata.four_colour/3`: Creates a 1D Four Colour Cellular Automaton
 * `CellularAutomata.Analysis.hamming_distance/2`: Calculates Hamming-distance between two ECA states
 * `CellularAutomata.Analysis.lyapunov_exponent/2`: Calculates the Lyapunov exponent between states of two ECAs
 * `CellularAutomata.Analysis.bdm_complexity/1`: Calculates the BDM complexity of an ECA
@@ -17,7 +18,7 @@ by adding `cellular_automata` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:cellular_automata, "~> 0.1.0"}
+    {:cellular_automata, "~> 0.2.0"}
   ]
 end
 ```
