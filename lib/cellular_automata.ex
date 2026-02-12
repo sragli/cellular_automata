@@ -19,8 +19,8 @@ defmodule CellularAutomata do
   end
 
   @doc """
-  Creates a Four-Colour CA based on the specified initial conditions and evolves it using
-  the supplied rule.
+  Creates a Four-Colour, 1D CA based on the specified initial conditions and evolves it
+  using the supplied rule.
 
   ## Parameters
   - `initial_state`: 2D matrix (list of lists) representing the initial state
@@ -39,6 +39,10 @@ defmodule CellularAutomata do
   Thus, any ECA can be represented by a list of non-negative integer numbers. This is a
   more compact representation, better suited for comparing large numbers of states of
   different ECAs.
+
+  The limitation is that the representation will loose information about the number of
+  bits in the original state, so it should be used only for comparing states of the
+  same length.
   """
   @spec compact(binary_matrix()) :: list(non_neg_integer())
   def compact(ca) do

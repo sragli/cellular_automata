@@ -1,6 +1,6 @@
 defmodule CellularAutomata.FourColour do
   @moduledoc """
-  Module for creating four-colour cellular automata.
+  Module for creating four-colour, 1D cellular automata.
   """
 
   @doc """
