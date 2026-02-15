@@ -37,6 +37,7 @@ defmodule CellularAutomata.Analysis do
 
   @doc """
   Computes BDM (Block Decomposition Method) complexity of an ECA.
+  Works only with ECAs (binary lists).
 
   ## Parameters
   - `ca`: ECA (list of states correspond to time evolution of the initial conditions)
