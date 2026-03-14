@@ -37,7 +37,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   def to_svg(graph, opts \\ []) do
     radius = Keyword.get(opts, :radius, 250)
     center = Keyword.get(opts, :center, 300)
-    node_r = Keyword.get(opts, :center, 18)
+    node_r = Keyword.get(opts, :node_r, 18)
 
     nodes = collect_nodes(graph)
 
@@ -57,10 +57,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     """
     <svg xmlns="http://www.w3.org/2000/svg" width="600" height="600">
     <defs>
-      <marker id="arrow" markerWidth="10" markerHeight="10"
-              refX="6" refY="3"
-              orient="auto"
-              markerUnits="strokeWidth">
+      <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
         <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
       </marker>
     </defs>
