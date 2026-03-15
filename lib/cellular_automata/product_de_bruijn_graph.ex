@@ -191,7 +191,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     Enum.flat_map(Map.get(graph, current, []), fn next ->
       cond do
         next == start ->
-          [Enum.reverse([next | path])]
+          [Enum.reverse(path)]
 
         next in path ->
           []
@@ -245,7 +245,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
 
   defp transpose(matrix) do
     matrix
-    |> List.zip()
+    |> Enum.zip()
     |> Enum.map(&Tuple.to_list/1)
   end
 
