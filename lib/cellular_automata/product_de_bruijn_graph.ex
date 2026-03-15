@@ -33,6 +33,46 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     end)
   end
 
+  @spec adjacency_matrix(map()) :: map()
+  def adjacency_matrix(graph) do
+    nodes = collect_nodes(graph)
+
+    index =
+      nodes
+      |> Enum.with_index()
+      |> Map.new()
+
+    size = length(nodes)
+
+    matrix =
+      for _ <- 1..size do
+        List.duplicate(0, size)
+      end
+
+    matrix =
+      Enum.reduce(graph, matrix, fn {from, tos}, m ->
+        i = index[from]
+
+        Enum.reduce(tos, m, fn to, acc ->
+          j = index[to]
+          set_matrix(acc, i, j, 1)
+        end)
+      end)
+
+    {nodes, matrix}
+  end
+
+  @doc """
+  Counts all length - n spatially periodic configurations.
+  """
+  def count_periodic_patterns(graph, n) do
+    {_nodes, matrix} = adjacency_matrix(graph)
+
+    matrix
+    |> pow(n)
+    |> trace()
+  end
+
   @spec to_svg(map()) :: binary()
   def to_svg(graph, opts \\ []) do
     radius = Keyword.get(opts, :radius, 250)
@@ -79,6 +119,13 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     Enum.uniq(sources ++ targets)
   end
 
+  # Update matrix element
+  defp set_matrix(matrix, i, j, value) do
+    List.update_at(matrix, i, fn row ->
+      List.replace_at(row, j, value)
+    end)
+  end
+
   defp draw_edges(graph, positions) do
     Enum.map_join(graph, "\n", fn {from, tos} ->
       {x1, y1} = Map.fetch!(positions, from)
@@ -90,7 +137,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
         <line x1="#{x1}" y1="#{y1}"
               x2="#{x2}" y2="#{y2}"
               stroke="#888"
-              stroke-width="1.5"
+              stroke-width="1"
               marker-end="url(#arrow)"/>
         """
       end)
@@ -172,5 +219,39 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
         end
       )
     end
+  end
+
+  defp multiply(a, b) do
+    cols = transpose(b)
+
+    for row <- a do
+      for col <- cols do
+        if Enum.any?(Enum.zip(row, col), fn {r, c} -> r == 1 and c == 1 end), do: 1, else: 0
+      end
+    end
+  end
+
+  defp transpose(matrix) do
+    matrix
+    |> List.zip()
+    |> Enum.map(&Tuple.to_list/1)
+  end
+
+  defp pow(m, 1), do: m
+
+  defp pow(m, n) when rem(n, 2) == 0 do
+    half = pow(m, div(n, 2))
+    multiply(half, half)
+  end
+
+  defp pow(m, n) do
+    half = pow(m, div(n, 2))
+    multiply(multiply(half, half), m)
+  end
+
+  defp trace(matrix) do
+    matrix
+    |> Enum.with_index()
+    |> Enum.reduce(0, fn {row, i}, acc -> acc + Enum.at(row, i) end)
   end
 end

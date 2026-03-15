@@ -1,4 +1,13 @@
 defmodule CellularAutomata.DeBruijnGraph do
+  @moduledoc """
+  The De Bruijn graph encodes all allowed spatial overlaps of neighborhoods (e.g. the local rule constraints).
+
+  Each edge represents a neighborhood: abc : ab → bc
+  A path corresponds to a spatial configuration. A cycle of length k corresponds to a spatially periodic
+  configuration with period k.
+  Thus we can derive periodic patterns, fixed structures, repeating attractors.
+  Since global behavior emerges from local interactions, the topology of this graph encodes the rule's dynamics.
+  """
   import Bitwise
 
   @spec build(non_neg_integer) :: map()
