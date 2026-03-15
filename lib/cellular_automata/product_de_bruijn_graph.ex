@@ -226,7 +226,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   defp all_bit_vectors(k) do
     for i <- 0..((1 <<< k) - 1) do
       List.to_tuple(
-        for j <- (k - 1)..0 do
+        for j <- (k - 1)..0//-1 do
           i >>> j &&& 1
         end
       )
