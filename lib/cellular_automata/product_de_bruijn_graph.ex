@@ -101,7 +101,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
         <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
       </marker>
     </defs>
-    #{draw_edges(graph, positions)}
+    #{draw_edges(graph, positions, node_r)}
     #{draw_nodes(positions, node_r)}
     </svg>
     """
@@ -126,18 +126,30 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     end)
   end
 
-  defp draw_edges(graph, positions) do
+  defp draw_edges(graph, positions, node_r) do
     Enum.map_join(graph, "\n", fn {from, tos} ->
       {x1, y1} = Map.fetch!(positions, from)
 
       Enum.map_join(tos, "\n", fn to ->
         {x2, y2} = Map.fetch!(positions, to)
 
+        # Shorten the line end by node_r so the arrowhead lands on the circle edge
+        dx = x2 - x1
+        dy = y2 - y1
+        len = :math.sqrt(dx * dx + dy * dy)
+
+        {ex, ey} =
+          if len == 0.0 do
+            {x2, y2}
+          else
+            {x2 - node_r * dx / len, y2 - node_r * dy / len}
+          end
+
         """
         <line x1="#{x1}" y1="#{y1}"
-              x2="#{x2}" y2="#{y2}"
+              x2="#{ex}" y2="#{ey}"
               stroke="#888"
-              stroke-width="1"
+              stroke-width="1.5"
               marker-end="url(#arrow)"/>
         """
       end)
