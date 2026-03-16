@@ -62,17 +62,6 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     {nodes, matrix}
   end
 
-  @doc """
-  Counts all length - n spatially periodic configurations.
-  """
-  def count_periodic_patterns(graph, n) do
-    {_nodes, matrix} = adjacency_matrix(graph)
-
-    matrix
-    |> pow(n)
-    |> trace()
-  end
-
   @spec to_svg(map()) :: binary()
   def to_svg(graph, opts \\ []) do
     radius = Keyword.get(opts, :radius, 250)
@@ -231,39 +220,5 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
         end
       )
     end
-  end
-
-  defp multiply(a, b) do
-    cols = transpose(b)
-
-    for row <- a do
-      for col <- cols do
-        if Enum.any?(Enum.zip(row, col), fn {r, c} -> r == 1 and c == 1 end), do: 1, else: 0
-      end
-    end
-  end
-
-  defp transpose(matrix) do
-    matrix
-    |> Enum.zip()
-    |> Enum.map(&Tuple.to_list/1)
-  end
-
-  defp pow(m, 1), do: m
-
-  defp pow(m, n) when rem(n, 2) == 0 do
-    half = pow(m, div(n, 2))
-    multiply(half, half)
-  end
-
-  defp pow(m, n) do
-    half = pow(m, div(n, 2))
-    multiply(multiply(half, half), m)
-  end
-
-  defp trace(matrix) do
-    matrix
-    |> Enum.with_index()
-    |> Enum.reduce(0, fn {row, i}, acc -> acc + Enum.at(row, i) end)
   end
 end
