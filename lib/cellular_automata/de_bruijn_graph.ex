@@ -72,6 +72,7 @@ defmodule CellularAutomata.DeBruijnGraph do
   @doc """
   Counts all length - n spatially periodic configurations.
   """
+  @spec count_periodic_patterns(map(), pos_integer()) :: non_neg_integer()
   def count_periodic_patterns(graph, n) do
     graph
     |> adjacency_matrix()
