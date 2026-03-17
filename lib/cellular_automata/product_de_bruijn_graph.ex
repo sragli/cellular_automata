@@ -93,6 +93,76 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   end
 
   @doc """
+  Renders the entire product De Bruijn graph as a spacetime grid SVG.
+
+  Every node `{a, b}` is laid out as one column (sorted for a deterministic
+  order). The `k` rows represent time steps 0…k-1; cell `(t, x)` shows
+  `b[t]` for the node at column `x`. Cells whose node belongs to an attractor
+  cycle are filled with the per-attractor colour; other alive cells (1) are
+  dark grey; dead cells (0) are white. A compact `b`-bit label is drawn below
+  each column.
+
+  Returns a UTF-8 SVG binary.
+  """
+  @spec to_spacetime_svg(map()) :: binary()
+  def to_spacetime_svg(graph) do
+    cell = 12
+    padding = 16
+    label_h = 18
+
+    k = infer_k(graph, [])
+    node_colors = graph |> find_attractors() |> build_cycle_node_colors()
+
+    nodes = collect_nodes(graph) |> Enum.sort()
+    n = length(nodes)
+
+    total_w = n * cell + 2 * padding
+    total_h = k * cell + label_h + 2 * padding
+
+    rects =
+      nodes
+      |> Enum.with_index()
+      |> Enum.map_join("\n", fn {{_a, b} = node, col} ->
+        base_color = Map.get(node_colors, node)
+        cx = padding + col * cell
+
+        time_cells =
+          Enum.map_join(0..(k - 1), "\n", fn t ->
+            val = elem(b, t)
+
+            fill =
+              cond do
+                val == 0 -> "white"
+                base_color != nil -> base_color
+                true -> "#555"
+              end
+
+            cy = padding + t * cell
+
+            ~s|<rect x="#{cx}" y="#{cy}" width="#{cell}" height="#{cell}"| <>
+              ~s| fill="#{fill}" stroke="#ccc" stroke-width="0.5"/>|
+          end)
+
+        b_str = b |> Tuple.to_list() |> Enum.join("")
+        font_s = min(cell - 2, 9)
+        ly = padding + k * cell + label_h - 4
+
+        label =
+          ~s|<text x="#{cx + div(cell, 2)}" y="#{ly}"| <>
+            ~s| text-anchor="middle" font-family="monospace"| <>
+            ~s| font-size="#{font_s}" fill="#666">#{b_str}</text>|
+
+        time_cells <> "\n" <> label
+      end)
+
+    """
+    <svg xmlns="http://www.w3.org/2000/svg" width="#{total_w}" height="#{total_h}">
+    #{rects}
+    </svg>
+    """
+  end
+
+  @doc """
   Renders the attractor cycles encoded in `cycles` as a spacetime grid SVG.
 
   Each cycle is shown as its own panel: columns are spatial positions (0…n-1)
