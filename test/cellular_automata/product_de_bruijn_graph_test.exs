@@ -231,6 +231,159 @@ defmodule CellularAutomata.ProductDeBruijnGraphTest do
   # adjacency_matrix/1
   # ---------------------------------------------------------------------------
 
+  # ---------------------------------------------------------------------------
+  # find_cycle/2
+  # ---------------------------------------------------------------------------
+
+  describe "find_cycle/2" do
+    test "returns a non-empty list of nodes" do
+      graph = ProductDeBruijnGraph.build(0, 1)
+      # The single-node SCC {{0},{0}} has a self-loop under rule 0
+      scc = [{{0}, {0}}]
+      cycle = ProductDeBruijnGraph.find_cycle(graph, scc)
+      assert is_list(cycle) and length(cycle) > 0
+    end
+
+    test "every node in the returned cycle belongs to the given SCC" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+      [scc | _] = ProductDeBruijnGraph.scc(graph) |> Enum.filter(&(length(&1) > 1))
+      cycle = ProductDeBruijnGraph.find_cycle(graph, scc)
+      scc_set = MapSet.new(scc)
+      assert Enum.all?(cycle, &MapSet.member?(scc_set, &1))
+    end
+
+    test "consecutive nodes in the cycle are connected by an edge" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+      [scc | _] = ProductDeBruijnGraph.scc(graph) |> Enum.filter(&(length(&1) > 1))
+      cycle = ProductDeBruijnGraph.find_cycle(graph, scc)
+
+      cycle
+      |> Enum.zip(tl(cycle) ++ [hd(cycle)])
+      |> Enum.each(fn {from, to} ->
+        assert to in Map.get(graph, from, []),
+               "No edge #{inspect(from)} → #{inspect(to)} in graph"
+      end)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # find_attractors/1
+  # ---------------------------------------------------------------------------
+
+  describe "find_attractors/1" do
+    test "rule 0, k=1: one attractor (all-zeros fixed point)" do
+      attractors =
+        ProductDeBruijnGraph.build(0, 1)
+        |> ProductDeBruijnGraph.find_attractors()
+
+      assert length(attractors) == 1
+    end
+
+    test "rule 255, k=1: one attractor (all-ones fixed point)" do
+      attractors =
+        ProductDeBruijnGraph.build(255, 1)
+        |> ProductDeBruijnGraph.find_attractors()
+
+      assert length(attractors) == 1
+    end
+
+    test "each attractor is a non-empty list of nodes" do
+      attractors =
+        ProductDeBruijnGraph.build(110, 2)
+        |> ProductDeBruijnGraph.find_attractors()
+
+      assert Enum.all?(attractors, fn a -> is_list(a) and length(a) > 0 end)
+    end
+
+    test "nodes in every attractor cycle are valid graph nodes" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+      all_nodes = Enum.flat_map(graph, fn {f, ts} -> [f | ts] end) |> MapSet.new()
+
+      graph
+      |> ProductDeBruijnGraph.find_attractors()
+      |> Enum.each(fn cycle ->
+        Enum.each(cycle, fn node ->
+          assert MapSet.member?(all_nodes, node), "Unknown node in attractor: #{inspect(node)}"
+        end)
+      end)
+    end
+
+    test "consecutive nodes in every attractor cycle are connected by an edge" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+
+      graph
+      |> ProductDeBruijnGraph.find_attractors()
+      |> Enum.each(fn cycle ->
+        cycle
+        |> Enum.zip(tl(cycle) ++ [hd(cycle)])
+        |> Enum.each(fn {from, to} ->
+          assert to in Map.get(graph, from, []),
+                 "No edge #{inspect(from)} → #{inspect(to)} in attractor cycle"
+        end)
+      end)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # cycle_to_spacetime/2
+  # ---------------------------------------------------------------------------
+
+  describe "cycle_to_spacetime/2" do
+    test "returns a grid with k rows" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
+      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
+      assert length(grid) == 2
+    end
+
+    test "each row has length equal to the cycle length" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
+      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
+      Enum.each(grid, fn row -> assert length(row) == length(cycle) end)
+    end
+
+    test "all values in the grid are 0 or 1" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
+      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
+      assert Enum.all?(List.flatten(grid), fn v -> v == 0 or v == 1 end)
+    end
+
+    test "rule 0, k=1: fixed-point attractor is all zeros" do
+      graph = ProductDeBruijnGraph.build(0, 1)
+      [cycle] = ProductDeBruijnGraph.find_attractors(graph)
+      [[row]] = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 1)
+      assert row == 0
+    end
+
+    test "rule 255, k=1: fixed-point attractor is all ones" do
+      graph = ProductDeBruijnGraph.build(255, 1)
+      [cycle] = ProductDeBruijnGraph.find_attractors(graph)
+      [[row]] = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 1)
+      assert row == 1
+    end
+
+    test "grid[t][x] matches the t-th bit of node x's second component" do
+      graph = ProductDeBruijnGraph.build(110, 2)
+      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
+      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
+
+      cycle
+      |> Enum.with_index()
+      |> Enum.each(fn {{_a, b}, x} ->
+        Enum.each(0..1, fn t ->
+          assert Enum.at(Enum.at(grid, t), x) == elem(b, t),
+                 "Mismatch at t=#{t}, x=#{x}"
+        end)
+      end)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # adjacency_matrix/1
+  # ---------------------------------------------------------------------------
+
   describe "adjacency_matrix/1" do
     test "returns {nodes, matrix} tuple" do
       graph = ProductDeBruijnGraph.build(0, 1)

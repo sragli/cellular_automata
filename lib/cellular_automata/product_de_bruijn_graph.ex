@@ -88,6 +88,23 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     |> Enum.map(&find_cycle(graph, &1))
   end
 
+  @doc """
+  Converts a cycle from the product De Bruijn graph into a 2-D spacetime grid.
+
+  Each node in `cycle` is a pair `{a, b}` where `b` is a `k`-tuple of bits
+  representing the cell state at each of the `k` time steps for one spatial
+  position. The returned grid is a list of `k` rows, each a list of
+  `length(cycle)` bit values: `grid[t][x]` is the state of cell `x` at time `t`.
+  """
+  @spec cycle_to_spacetime(list(tuple()), pos_integer()) :: list(list(integer()))
+  def cycle_to_spacetime(cycle, k) do
+    for t <- 0..(k - 1) do
+      for {_a, b} <- cycle do
+        elem(b, t)
+      end
+    end
+  end
+
   # Rotate a cycle so the lexicographically smallest node is first,
   # giving a unique canonical form regardless of which node the DFS started from.
   defp canonicalize_cycle(cycle) do
@@ -103,7 +120,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   (sources and targets) and `matrix` is a list of rows of `0`/`1` integers.
   Entry `matrix[i][j] == 1` means there is an edge from `nodes[i]` to `nodes[j]`.
   """
-  @spec adjacency_matrix(map()) :: map()
+  @spec adjacency_matrix(map()) :: {list(tuple()), list(list(integer()))}
   def adjacency_matrix(graph) do
     nodes = collect_nodes(graph)
 
@@ -409,7 +426,8 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
       path |> Enum.reverse() |> Enum.drop(cycle_start_index)
     else
       visited = Map.put(visited, node, length(path))
-      path = [node | path]  # O(1) prepend instead of O(n) append
+      # O(1) prepend instead of O(n) append
+      path = [node | path]
 
       # restrict neighbors to the SCC using MapSet for O(1) membership
       neighbors =
