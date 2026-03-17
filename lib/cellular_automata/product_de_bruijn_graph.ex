@@ -28,9 +28,19 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
 
   @spec find_cycles(map()) :: list(list(tuple()))
   def find_cycles(graph) do
-    Enum.flat_map(Map.keys(graph), fn node ->
-      dfs(graph, node, node, [node])
-    end)
+    graph
+    |> Map.keys()
+    |> Enum.flat_map(fn node -> dfs(graph, node, node, [node], MapSet.new([node])) end)
+    |> Enum.map(&canonicalize_cycle/1)
+    |> Enum.uniq()
+  end
+
+  # Rotate a cycle so the lexicographically smallest node is first,
+  # giving a unique canonical form regardless of which node the DFS started from.
+  defp canonicalize_cycle(cycle) do
+    min_node = Enum.min(cycle)
+    idx = Enum.find_index(cycle, &(&1 == min_node))
+    cycle |> Stream.cycle() |> Stream.drop(idx) |> Enum.take(length(cycle))
   end
 
   @spec adjacency_matrix(map()) :: map()
@@ -60,6 +70,24 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
       end)
 
     {nodes, matrix}
+  end
+
+  @spec scc(map()) :: list(list(tuple()))
+  def scc(graph) do
+    nodes = graph |> collect_nodes() |> Enum.sort()
+    n = length(nodes)
+    index = nodes |> Enum.with_index() |> Map.new()
+
+    bit_graph =
+      Enum.map(nodes, fn node ->
+        Map.get(graph, node, [])
+        |> Enum.reduce(0, fn to, acc -> acc ||| 1 <<< Map.fetch!(index, to) end)
+      end)
+
+    all = (1 <<< n) - 1
+
+    do_scc(bit_graph, all, [])
+    |> Enum.map(fn idx_list -> Enum.map(idx_list, &Enum.at(nodes, &1)) end)
   end
 
   @spec to_svg(map()) :: binary()
@@ -176,17 +204,17 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     |> Enum.join("")
   end
 
-  defp dfs(graph, start, current, path) do
+  defp dfs(graph, start, current, path, visited) do
     Enum.flat_map(Map.get(graph, current, []), fn next ->
       cond do
         next == start ->
           [Enum.reverse(path)]
 
-        next in path ->
+        MapSet.member?(visited, next) ->
           []
 
         true ->
-          dfs(graph, start, next, [next | path])
+          dfs(graph, start, next, [next | path], MapSet.put(visited, next))
       end
     end)
   end
@@ -220,5 +248,97 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
         end
       )
     end
+  end
+
+  # Recursive decomposition
+  defp do_scc(_graph, 0, acc), do: acc
+
+  defp do_scc(graph, remaining, acc) do
+    v = pick_node(remaining)
+
+    fwd = reachable_forward(graph, v)
+    bwd = reachable_backward(graph, v)
+
+    scc = fwd &&& bwd
+
+    remaining = remaining &&& bnot(scc)
+
+    do_scc(graph, remaining, [bitset_to_list(scc) | acc])
+  end
+
+  # Pick lowest set bit (count trailing zeros with pure integer arithmetic,
+  # avoiding float precision loss for indices >= 53)
+  defp pick_node(bitset) do
+    lsb = bitset &&& -bitset
+    do_ctz(lsb, 0)
+  end
+
+  defp do_ctz(1, acc), do: acc
+  defp do_ctz(n, acc), do: do_ctz(n >>> 1, acc + 1)
+
+  # Forward reachability (BFS with bitsets)
+  defp reachable_forward(graph, start) do
+    bfs(graph, 1 <<< start)
+  end
+
+  # Backward reachability using transposed graph
+  defp reachable_backward(graph, start) do
+    graph
+    |> transpose()
+    |> bfs(1 <<< start)
+  end
+
+  # Bitset BFS
+  defp bfs(graph, frontier) do
+    bfs(graph, frontier, frontier)
+  end
+
+  defp bfs(graph, frontier, visited) do
+    next =
+      Enum.with_index(graph)
+      |> Enum.reduce(0, fn {row, i}, acc ->
+        if (frontier &&& 1 <<< i) != 0 do
+          acc ||| row
+        else
+          acc
+        end
+      end)
+
+    new = next &&& bnot(visited)
+
+    if new == 0 do
+      visited
+    else
+      bfs(graph, new, visited ||| new)
+    end
+  end
+
+  defp transpose(graph) do
+    n = length(graph)
+
+    for j <- 0..(n - 1) do
+      Enum.with_index(graph)
+      |> Enum.reduce(0, fn {row, i}, acc ->
+        if (row &&& 1 <<< j) != 0 do
+          acc ||| 1 <<< i
+        else
+          acc
+        end
+      end)
+    end
+  end
+
+  # Convert bitset → list of node indices
+  defp bitset_to_list(bitset) do
+    Stream.unfold(bitset, fn
+      0 ->
+        nil
+
+      x ->
+        lsb = x &&& -x
+        idx = do_ctz(lsb, 0)
+        {idx, Bitwise.bxor(x, lsb)}
+    end)
+    |> Enum.to_list()
   end
 end

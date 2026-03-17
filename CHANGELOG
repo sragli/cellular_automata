@@ -1,3 +1,9 @@
+## [0.3.0] - 2026-03-17
+
+### Added
+- `CellularAutomata.DeBruijnGraph` module for creating De Bruijn graphs from cellular automata rules
+- `CellularAutomata.ProductDeBruijnGraph` module for creating product De Bruijn graphs from cellular automata rules
+
 ## [0.2.0] - 2026-02-12
 
 ### Added

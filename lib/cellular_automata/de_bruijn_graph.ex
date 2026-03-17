@@ -65,7 +65,7 @@ defmodule CellularAutomata.DeBruijnGraph do
     nodes = Map.keys(graph)
 
     Enum.flat_map(nodes, fn node ->
-      dfs(graph, node, node, [node])
+      dfs(graph, node, node, [node], MapSet.new([node]))
     end)
   end
 
@@ -80,17 +80,17 @@ defmodule CellularAutomata.DeBruijnGraph do
     |> trace()
   end
 
-  defp dfs(graph, start, current, path) do
+  defp dfs(graph, start, current, path, visited) do
     Enum.flat_map(Map.get(graph, current, []), fn {next, _} ->
       cond do
         next == start ->
           [Enum.reverse([next | path])]
 
-        next in path ->
+        MapSet.member?(visited, next) ->
           []
 
         true ->
-          dfs(graph, start, next, [next | path])
+          dfs(graph, start, next, [next | path], MapSet.put(visited, next))
       end
     end)
   end
@@ -100,7 +100,8 @@ defmodule CellularAutomata.DeBruijnGraph do
 
     for row <- a do
       for col <- cols do
-        if Enum.any?(Enum.zip(row, col), fn {r, c} -> r == 1 and c == 1 end), do: 1, else: 0
+        Enum.zip(row, col)
+        |> Enum.reduce(0, fn {r, c}, acc -> acc + r * c end)
       end
     end
   end
