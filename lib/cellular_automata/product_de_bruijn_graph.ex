@@ -6,6 +6,17 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   """
   import Bitwise
 
+  @doc """
+  Builds the product De Bruijn graph for an elementary cellular automaton identified by
+  `rule_id` and temporal period `k`.
+
+  Each node is a pair `{a, b}` of `k`-bit vectors representing two consecutive time steps
+  of a spatially periodic configuration. An edge `{a, b} → {b, c}` exists when the
+  transition from `a` to `b` is consistent with the rule applied to the neighbourhood
+  defined by `a`, `b`, and `c`.
+
+  Returns a map from each source node to its list of target nodes.
+  """
   @spec build(map(), pos_integer) :: map()
   def build(rule_id, k) do
     bits = all_bit_vectors(k)
@@ -26,6 +37,15 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     end)
   end
 
+  @doc """
+  Finds all simple cycles in `graph` using depth-first search.
+
+  Each cycle is returned in canonical form: rotated so that its lexicographically
+  smallest node comes first, ensuring each distinct cycle appears exactly once
+  regardless of which node the search started from.
+
+  Returns a list of cycles, where each cycle is a list of nodes.
+  """
   @spec find_cycles(map()) :: list(list(tuple()))
   def find_cycles(graph) do
     graph
@@ -43,6 +63,13 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     cycle |> Stream.cycle() |> Stream.drop(idx) |> Enum.take(length(cycle))
   end
 
+  @doc """
+  Returns the adjacency matrix of `graph` together with the ordered node list.
+
+  The result is a `{nodes, matrix}` tuple where `nodes` is the list of all nodes
+  (sources and targets) and `matrix` is a list of rows of `0`/`1` integers.
+  Entry `matrix[i][j] == 1` means there is an edge from `nodes[i]` to `nodes[j]`.
+  """
   @spec adjacency_matrix(map()) :: map()
   def adjacency_matrix(graph) do
     nodes = collect_nodes(graph)
@@ -72,6 +99,15 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     {nodes, matrix}
   end
 
+  @doc """
+  Computes the strongly connected components (SCCs) of `graph`.
+
+  Uses a bitset-based forward/backward reachability decomposition. Each SCC is
+  returned as a list of nodes; the order of components and nodes within each
+  component is not guaranteed.
+
+  Returns a list of SCCs, where each SCC is a list of nodes.
+  """
   @spec scc(map()) :: list(list(tuple()))
   def scc(graph) do
     nodes = graph |> collect_nodes() |> Enum.sort()
@@ -90,6 +126,17 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     |> Enum.map(fn idx_list -> Enum.map(idx_list, &Enum.at(nodes, &1)) end)
   end
 
+  @doc """
+  Renders `graph` as an SVG string in a circular layout.
+
+  ## Options
+
+    * `:radius` - radius of the node circle layout in pixels (default: `250`)
+    * `:center` - x/y coordinate of the circle centre in pixels (default: `300`)
+    * `:node_r` - radius of each node circle in pixels (default: `18`)
+
+  Returns a UTF-8 encoded SVG binary suitable for writing to a file or embedding in HTML.
+  """
   @spec to_svg(map()) :: binary()
   def to_svg(graph, opts \\ []) do
     radius = Keyword.get(opts, :radius, 250)

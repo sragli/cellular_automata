@@ -10,6 +10,15 @@ defmodule CellularAutomata.DeBruijnGraph do
   """
   import Bitwise
 
+  @doc """
+  Builds the De Bruijn graph for an elementary cellular automaton identified by `rule_id`.
+
+  Each node is a pair `{left, center}` of bits, and each edge `{to, output}` represents
+  the transition `{left, center} → {center, right}` where `output` is the bit produced by
+  applying the rule to the neighbourhood `(left, center, right)`.
+
+  Returns a map from each source node to its list of `{target_node, output_bit}` edges.
+  """
   @spec build(non_neg_integer) :: map()
   def build(rule_id) do
     Enum.reduce(0..7, %{}, fn pattern, g ->
@@ -25,6 +34,12 @@ defmodule CellularAutomata.DeBruijnGraph do
     end)
   end
 
+  @doc """
+  Returns the adjacency matrix of `graph` as a list of rows (each row is a list of `0`/`1` integers).
+
+  Nodes are sorted before indexing, so the matrix ordering is deterministic.
+  Entry `matrix[i][j] == 1` means there is at least one edge from node `i` to node `j`.
+  """
   @spec adjacency_matrix(map()) :: map()
   def adjacency_matrix(graph) do
     nodes = graph |> Map.keys() |> Enum.sort()
@@ -45,6 +60,9 @@ defmodule CellularAutomata.DeBruijnGraph do
     end)
   end
 
+  @doc """
+  Prints the adjacency matrix of `graph` to stdout with row and column node labels.
+  """
   @spec print_adjacency_matrix(map()) :: :ok
   def print_adjacency_matrix(graph) do
     nodes = graph |> Map.keys() |> Enum.sort()
@@ -60,6 +78,12 @@ defmodule CellularAutomata.DeBruijnGraph do
     end)
   end
 
+  @doc """
+  Finds all simple cycles in `graph` using depth-first search.
+
+  Returns a list of cycles, where each cycle is a list of nodes visited in order
+  (starting and ending node are the same). Cycles of any length are included.
+  """
   @spec find_cycles(map()) :: list(list({0 | 1, 0 | 1}))
   def find_cycles(graph) do
     nodes = Map.keys(graph)
