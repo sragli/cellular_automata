@@ -102,20 +102,51 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   dark grey; dead cells (0) are white. A compact `b`-bit label is drawn below
   each column.
 
+  ## Parameters
+
+    * `graph`         - the product De Bruijn graph built with `build/2`
+    * `initial_state` - (optional) a list of `0`/`1` values for the first row
+      of the CA. When provided, exactly `length(initial_state)` columns are
+      displayed: for each position `x`, the node whose `b[0]` matches
+      `initial_state[x]` is selected (attractor-cycle nodes take priority).
+      The initial-state row is visually separated from the rest of the grid by
+      a bold border. When omitted (default `[]`), all nodes are shown.
+
   Returns a UTF-8 SVG binary.
   """
-  @spec to_spacetime_svg(map()) :: binary()
-  def to_spacetime_svg(graph) do
+  @spec to_spacetime_svg(map(), list(0 | 1)) :: binary()
+  def to_spacetime_svg(graph, initial_state \\ []) do
     cell = 12
     padding = 16
     label_h = 18
 
     k = infer_k(graph, [])
     node_colors = graph |> find_attractors() |> build_cycle_node_colors()
+    all_nodes = collect_nodes(graph) |> Enum.sort()
 
-    nodes = collect_nodes(graph) |> Enum.sort()
+    nodes =
+      if initial_state == [] do
+        all_nodes
+      else
+        # Partition by b[0], attractor nodes first
+        {zeros, ones} =
+          all_nodes
+          |> Enum.sort_by(fn node -> if Map.has_key?(node_colors, node), do: 0, else: 1 end)
+          |> Enum.split_with(fn {_a, b} -> elem(b, 0) == 0 end)
+
+        # Pick one node per bit in initial_state
+        {selected, _, _} =
+          Enum.reduce(initial_state, {[], zeros, ones}, fn
+            0, {acc, [n | zs], os} -> {[n | acc], zs, os}
+            0, {acc, [], os} -> {acc, [], os}
+            1, {acc, zs, [n | os]} -> {[n | acc], zs, os}
+            1, {acc, zs, []} -> {acc, zs, []}
+          end)
+
+        Enum.reverse(selected)
+      end
+
     n = length(nodes)
-
     total_w = n * cell + 2 * padding
     total_h = k * cell + label_h + 2 * padding
 
@@ -137,10 +168,16 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
                 true -> "#555"
               end
 
+            # Bold border on the initial-state row when initial_state is given
+            {stroke, stroke_w} =
+              if initial_state != [] and t == 0,
+                do: {"#333", "1.5"},
+                else: {"#ccc", "0.5"}
+
             cy = padding + t * cell
 
             ~s|<rect x="#{cx}" y="#{cy}" width="#{cell}" height="#{cell}"| <>
-              ~s| fill="#{fill}" stroke="#ccc" stroke-width="0.5"/>|
+              ~s| fill="#{fill}" stroke="#{stroke}" stroke-width="#{stroke_w}"/>|
           end)
 
         b_str = b |> Tuple.to_list() |> Enum.join("")
@@ -158,88 +195,6 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     """
     <svg xmlns="http://www.w3.org/2000/svg" width="#{total_w}" height="#{total_h}">
     #{rects}
-    </svg>
-    """
-  end
-
-  @doc """
-  Renders the attractor cycles encoded in `cycles` as a spacetime grid SVG.
-
-  Each cycle is shown as its own panel: columns are spatial positions (0…n-1)
-  and rows are time steps (row 0 = time 0). Dead cells (0) are white; alive
-  cells (1) are coloured by attractor, making multiple attractors easy to
-  distinguish at a glance.
-
-  ## Options
-
-    * `:cell`    - side length of each grid cell in pixels (default: `14`)
-    * `:gap`     - horizontal gap between cycle panels in pixels (default: `20`)
-    * `:padding` - outer padding around all panels in pixels (default: `20`)
-
-  Returns a UTF-8 SVG binary.
-  """
-  @spec to_spacetime_svg(map(), list(list(tuple())), keyword()) :: binary()
-  def to_spacetime_svg(graph, cycles, opts \\ []) do
-    cell = Keyword.get(opts, :cell, 14)
-    gap = Keyword.get(opts, :gap, 20)
-    padding = Keyword.get(opts, :padding, 20)
-    label_h = 20
-
-    k = infer_k(graph, cycles)
-
-    panels =
-      cycles
-      |> Enum.with_index()
-      |> Enum.map(fn {cycle, i} ->
-        grid = for t <- 0..(k - 1), do: for({_a, b} <- cycle, do: elem(b, t))
-        pw = length(cycle) * cell
-        ph = k * cell
-        color = cycle_color(i)
-        {grid, pw, ph, color}
-      end)
-
-    total_w =
-      (panels |> Enum.map(fn {_, w, _, _} -> w end) |> Enum.sum()) +
-        2 * padding +
-        max(0, length(panels) - 1) * gap
-
-    max_h = panels |> Enum.map(fn {_, _, h, _} -> h end) |> Enum.max(fn -> 0 end)
-    total_h = max_h + label_h + 2 * padding
-
-    {panel_svgs, _} =
-      Enum.reduce(panels, {[], padding}, fn {grid, pw, _ph, color}, {acc, x_off} ->
-        n_cols = length(hd(grid))
-        n_rows = length(grid)
-        mid_x = x_off + pw / 2
-
-        label = """
-        <text x="#{mid_x}" y="#{padding + label_h - 5}"
-              text-anchor="middle" font-family="monospace" font-size="11" fill="#444">
-          #{n_cols}\u00d7#{n_rows}
-        </text>
-        """
-
-        cells =
-          grid
-          |> Enum.with_index()
-          |> Enum.map_join("\n", fn {row, t} ->
-            row
-            |> Enum.with_index()
-            |> Enum.map_join("\n", fn {val, x} ->
-              fill = if val == 1, do: color, else: "white"
-
-              ~s|<rect x="#{x_off + x * cell}" y="#{padding + label_h + t * cell}"| <>
-                ~s| width="#{cell}" height="#{cell}"| <>
-                ~s| fill="#{fill}" stroke="#bbb" stroke-width="0.5"/>|
-            end)
-          end)
-
-        {[label <> cells | acc], x_off + pw + gap}
-      end)
-
-    """
-    <svg xmlns="http://www.w3.org/2000/svg" width="#{total_w}" height="#{total_h}">
-    #{panel_svgs |> Enum.reverse() |> Enum.join("\n")}
     </svg>
     """
   end
