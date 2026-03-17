@@ -55,6 +55,39 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     |> Enum.uniq()
   end
 
+  @doc """
+  Finds one representative cycle within the given strongly-connected component `scc`.
+
+  `scc` must be a non-empty list of nodes all belonging to `graph`. Returns a list
+  of nodes forming a cycle. Raises if the SCC contains no cycle (single node without
+  a self-loop).
+  """
+  @spec find_cycle(map(), list(tuple())) :: list(tuple())
+  def find_cycle(graph, scc) do
+    scc_set = MapSet.new(scc)
+    walk(graph, scc_set, hd(scc), %{}, [])
+  end
+
+  @doc """
+  Returns one representative cycle for every strongly-connected component of `graph`
+  that contains a cycle (i.e., every true attractor).
+
+  SCCs consisting of a single node with no self-loop are skipped because they
+  contain no cycle.
+
+  Returns a list of cycles, where each cycle is a list of nodes.
+  """
+  @spec find_attractors(map()) :: list(list(tuple()))
+  def find_attractors(graph) do
+    graph
+    |> scc()
+    |> Enum.filter(fn
+      [node] -> node in Map.get(graph, node, [])
+      _ -> true
+    end)
+    |> Enum.map(&find_cycle(graph, &1))
+  end
+
   # Rotate a cycle so the lexicographically smallest node is first,
   # giving a unique canonical form regardless of which node the DFS started from.
   defp canonicalize_cycle(cycle) do
@@ -100,33 +133,6 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   end
 
   @doc """
-  Computes the strongly connected components (SCCs) of `graph`.
-
-  Uses a bitset-based forward/backward reachability decomposition. Each SCC is
-  returned as a list of nodes; the order of components and nodes within each
-  component is not guaranteed.
-
-  Returns a list of SCCs, where each SCC is a list of nodes.
-  """
-  @spec scc(map()) :: list(list(tuple()))
-  def scc(graph) do
-    nodes = graph |> collect_nodes() |> Enum.sort()
-    n = length(nodes)
-    index = nodes |> Enum.with_index() |> Map.new()
-
-    bit_graph =
-      Enum.map(nodes, fn node ->
-        Map.get(graph, node, [])
-        |> Enum.reduce(0, fn to, acc -> acc ||| 1 <<< Map.fetch!(index, to) end)
-      end)
-
-    all = (1 <<< n) - 1
-
-    do_scc(bit_graph, all, [])
-    |> Enum.map(fn idx_list -> Enum.map(idx_list, &Enum.at(nodes, &1)) end)
-  end
-
-  @doc """
   Renders `graph` as an SVG string in a circular layout.
 
   ## Options
@@ -169,6 +175,27 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     #{draw_nodes(positions, node_r)}
     </svg>
     """
+  end
+
+  @doc """
+  Computes the strongly-connected components (SCCs) of `graph` using Tarjan's algorithm.
+  """
+  @spec scc(map()) :: list(list(tuple()))
+  def scc(graph) do
+    nodes = graph |> collect_nodes() |> Enum.sort()
+    n = length(nodes)
+    index = nodes |> Enum.with_index() |> Map.new()
+
+    bit_graph =
+      Enum.map(nodes, fn node ->
+        Map.get(graph, node, [])
+        |> Enum.reduce(0, fn to, acc -> acc ||| 1 <<< Map.fetch!(index, to) end)
+      end)
+
+    all = (1 <<< n) - 1
+
+    do_scc(bit_graph, all, [])
+    |> Enum.map(fn idx_list -> Enum.map(idx_list, &Enum.at(nodes, &1)) end)
   end
 
   # Collect source and target nodes
@@ -372,6 +399,24 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
           acc
         end
       end)
+    end
+  end
+
+  defp walk(graph, scc_set, node, visited, path) do
+    if Map.has_key?(visited, node) do
+      # cycle found — path was built with prepend so reverse before slicing
+      cycle_start_index = visited[node]
+      path |> Enum.reverse() |> Enum.drop(cycle_start_index)
+    else
+      visited = Map.put(visited, node, length(path))
+      path = [node | path]  # O(1) prepend instead of O(n) append
+
+      # restrict neighbors to the SCC using MapSet for O(1) membership
+      neighbors =
+        Map.get(graph, node, [])
+        |> Enum.filter(&MapSet.member?(scc_set, &1))
+
+      walk(graph, scc_set, hd(neighbors), visited, path)
     end
   end
 
