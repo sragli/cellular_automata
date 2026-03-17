@@ -6,6 +6,10 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   """
   import Bitwise
 
+  # Colour palette used to distinguish different attractor cycles across both
+  # the graph diagram and the spacetime grid.
+  @cycle_colors ~w[#e84040 #4064e8 #28a828 #e87820 #9428c8 #e82896 #28a8c8 #c8c828]
+
   @doc """
   Builds the product De Bruijn graph for an elementary cellular automaton identified by
   `rule_id` and temporal period `k`.
@@ -89,20 +93,85 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   end
 
   @doc """
-  Converts a cycle from the product De Bruijn graph into a 2-D spacetime grid.
+  Renders the attractor cycles encoded in `cycles` as a spacetime grid SVG.
 
-  Each node in `cycle` is a pair `{a, b}` where `b` is a `k`-tuple of bits
-  representing the cell state at each of the `k` time steps for one spatial
-  position. The returned grid is a list of `k` rows, each a list of
-  `length(cycle)` bit values: `grid[t][x]` is the state of cell `x` at time `t`.
+  Each cycle is shown as its own panel: columns are spatial positions (0…n-1)
+  and rows are time steps (row 0 = time 0). Dead cells (0) are white; alive
+  cells (1) are coloured by attractor, making multiple attractors easy to
+  distinguish at a glance.
+
+  ## Options
+
+    * `:cell`    - side length of each grid cell in pixels (default: `14`)
+    * `:gap`     - horizontal gap between cycle panels in pixels (default: `20`)
+    * `:padding` - outer padding around all panels in pixels (default: `20`)
+
+  Returns a UTF-8 SVG binary.
   """
-  @spec cycle_to_spacetime(list(tuple()), pos_integer()) :: list(list(integer()))
-  def cycle_to_spacetime(cycle, k) do
-    for t <- 0..(k - 1) do
-      for {_a, b} <- cycle do
-        elem(b, t)
-      end
-    end
+  @spec to_spacetime_svg(map(), list(list(tuple())), keyword()) :: binary()
+  def to_spacetime_svg(graph, cycles, opts \\ []) do
+    cell = Keyword.get(opts, :cell, 14)
+    gap = Keyword.get(opts, :gap, 20)
+    padding = Keyword.get(opts, :padding, 20)
+    label_h = 20
+
+    k = infer_k(graph, cycles)
+
+    panels =
+      cycles
+      |> Enum.with_index()
+      |> Enum.map(fn {cycle, i} ->
+        grid = for t <- 0..(k - 1), do: for({_a, b} <- cycle, do: elem(b, t))
+        pw = length(cycle) * cell
+        ph = k * cell
+        color = cycle_color(i)
+        {grid, pw, ph, color}
+      end)
+
+    total_w =
+      (panels |> Enum.map(fn {_, w, _, _} -> w end) |> Enum.sum()) +
+        2 * padding +
+        max(0, length(panels) - 1) * gap
+
+    max_h = panels |> Enum.map(fn {_, _, h, _} -> h end) |> Enum.max(fn -> 0 end)
+    total_h = max_h + label_h + 2 * padding
+
+    {panel_svgs, _} =
+      Enum.reduce(panels, {[], padding}, fn {grid, pw, _ph, color}, {acc, x_off} ->
+        n_cols = length(hd(grid))
+        n_rows = length(grid)
+        mid_x = x_off + pw / 2
+
+        label = """
+        <text x="#{mid_x}" y="#{padding + label_h - 5}"
+              text-anchor="middle" font-family="monospace" font-size="11" fill="#444">
+          #{n_cols}\u00d7#{n_rows}
+        </text>
+        """
+
+        cells =
+          grid
+          |> Enum.with_index()
+          |> Enum.map_join("\n", fn {row, t} ->
+            row
+            |> Enum.with_index()
+            |> Enum.map_join("\n", fn {val, x} ->
+              fill = if val == 1, do: color, else: "white"
+
+              ~s|<rect x="#{x_off + x * cell}" y="#{padding + label_h + t * cell}"| <>
+                ~s| width="#{cell}" height="#{cell}"| <>
+                ~s| fill="#{fill}" stroke="#bbb" stroke-width="0.5"/>|
+            end)
+          end)
+
+        {[label <> cells | acc], x_off + pw + gap}
+      end)
+
+    """
+    <svg xmlns="http://www.w3.org/2000/svg" width="#{total_w}" height="#{total_h}">
+    #{panel_svgs |> Enum.reverse() |> Enum.join("\n")}
+    </svg>
+    """
   end
 
   # Rotate a cycle so the lexicographically smallest node is first,
@@ -157,15 +226,20 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     * `:radius` - radius of the node circle layout in pixels (default: `250`)
     * `:center` - x/y coordinate of the circle centre in pixels (default: `300`)
     * `:node_r` - radius of each node circle in pixels (default: `18`)
+    * `:cycles` - list of attractor cycles (as returned by `find_attractors/1`);
+                  nodes belonging to a cycle are filled with a distinct colour
+                  per attractor (default: `[]`)
 
   Returns a UTF-8 encoded SVG binary suitable for writing to a file or embedding in HTML.
   """
-  @spec to_svg(map()) :: binary()
+  @spec to_svg(map(), keyword()) :: binary()
   def to_svg(graph, opts \\ []) do
     radius = Keyword.get(opts, :radius, 250)
     center = Keyword.get(opts, :center, 300)
     node_r = Keyword.get(opts, :node_r, 18)
+    cycles = Keyword.get(opts, :cycles, [])
 
+    cycle_nodes = build_cycle_node_colors(cycles)
     nodes = collect_nodes(graph)
 
     positions =
@@ -189,7 +263,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
       </marker>
     </defs>
     #{draw_edges(graph, positions, node_r)}
-    #{draw_nodes(positions, node_r)}
+    #{draw_nodes(positions, node_r, cycle_nodes)}
     </svg>
     """
   end
@@ -264,21 +338,24 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     end)
   end
 
-  defp draw_nodes(positions, node_r) do
+  defp draw_nodes(positions, node_r, cycle_nodes) do
     Enum.map_join(positions, "\n", fn {node, {x, y}} ->
       label = node_label(node)
+      fill = Map.get(cycle_nodes, node, "white")
+      text_fill = if fill == "white", do: "#333", else: "white"
 
       """
       <circle cx="#{x}" cy="#{y}"
               r="#{node_r}"
-              fill="white"
+              fill="#{fill}"
               stroke="#333"
               stroke-width="2"/>
 
       <text x="#{x}" y="#{y + 4}"
             text-anchor="middle"
             font-family="monospace"
-            font-size="10">
+            font-size="10"
+            fill="#{text_fill}">
         #{label}
       </text>
       """
@@ -293,6 +370,25 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     t
     |> Tuple.to_list()
     |> Enum.join("")
+  end
+
+  defp cycle_color(i), do: Enum.at(@cycle_colors, rem(i, length(@cycle_colors)))
+
+  defp build_cycle_node_colors(cycles) do
+    cycles
+    |> Enum.with_index()
+    |> Enum.reduce(%{}, fn {cycle, i}, acc ->
+      color = cycle_color(i)
+      Enum.reduce(cycle, acc, fn node, a -> Map.put(a, node, color) end)
+    end)
+  end
+
+  # Infer the temporal period k from the bit-vector size stored in nodes.
+  defp infer_k(_graph, [[{_a, b} | _] | _]), do: tuple_size(b)
+
+  defp infer_k(graph, _cycles) do
+    {_a, b} = graph |> Map.keys() |> hd()
+    tuple_size(b)
   end
 
   defp dfs(graph, start, current, path, visited) do

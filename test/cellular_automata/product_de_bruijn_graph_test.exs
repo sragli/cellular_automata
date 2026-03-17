@@ -325,58 +325,64 @@ defmodule CellularAutomata.ProductDeBruijnGraphTest do
   end
 
   # ---------------------------------------------------------------------------
-  # cycle_to_spacetime/2
+  # to_spacetime_svg/2
   # ---------------------------------------------------------------------------
 
-  describe "cycle_to_spacetime/2" do
-    test "returns a grid with k rows" do
+  describe "to_spacetime_svg/2" do
+    test "returns a binary (SVG string)" do
       graph = ProductDeBruijnGraph.build(110, 2)
-      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
-      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
-      assert length(grid) == 2
+      attractors = ProductDeBruijnGraph.find_attractors(graph)
+      svg = ProductDeBruijnGraph.to_spacetime_svg(graph, attractors)
+      assert is_binary(svg)
     end
 
-    test "each row has length equal to the cycle length" do
+    test "output contains an <svg> root element" do
       graph = ProductDeBruijnGraph.build(110, 2)
-      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
-      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
-      Enum.each(grid, fn row -> assert length(row) == length(cycle) end)
+
+      svg =
+        ProductDeBruijnGraph.to_spacetime_svg(graph, ProductDeBruijnGraph.find_attractors(graph))
+
+      assert svg =~ "<svg"
+      assert svg =~ "</svg>"
     end
 
-    test "all values in the grid are 0 or 1" do
-      graph = ProductDeBruijnGraph.build(110, 2)
-      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
-      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
-      assert Enum.all?(List.flatten(grid), fn v -> v == 0 or v == 1 end)
-    end
-
-    test "rule 0, k=1: fixed-point attractor is all zeros" do
+    test "output contains one <rect> per cell per attractor cycle" do
       graph = ProductDeBruijnGraph.build(0, 1)
       [cycle] = ProductDeBruijnGraph.find_attractors(graph)
-      [[row]] = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 1)
-      assert row == 0
+      # k=1, cycle length=1 → 1 row × 1 col = 1 rect
+      svg = ProductDeBruijnGraph.to_spacetime_svg(graph, [cycle])
+      rect_count = svg |> String.split("<rect") |> length() |> Kernel.-(1)
+      assert rect_count == length(cycle) * 1
     end
 
-    test "rule 255, k=1: fixed-point attractor is all ones" do
+    test "rule 0, k=1: the single cell is white (dead)" do
+      graph = ProductDeBruijnGraph.build(0, 1)
+      [cycle] = ProductDeBruijnGraph.find_attractors(graph)
+      svg = ProductDeBruijnGraph.to_spacetime_svg(graph, [cycle])
+      # The unique attractor cell is dead (0), so its rect must have fill="white"
+      assert svg =~ ~s|fill="white"|
+    end
+
+    test "rule 255, k=1: the single cell uses the cycle colour (alive)" do
       graph = ProductDeBruijnGraph.build(255, 1)
       [cycle] = ProductDeBruijnGraph.find_attractors(graph)
-      [[row]] = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 1)
-      assert row == 1
+      svg = ProductDeBruijnGraph.to_spacetime_svg(graph, [cycle])
+      # The cell is alive (1) so it must NOT be white — it gets the cycle colour
+      refute svg =~ ~s|fill="white"|
     end
 
-    test "grid[t][x] matches the t-th bit of node x's second component" do
+    test "empty cycles list produces an SVG with no rects" do
       graph = ProductDeBruijnGraph.build(110, 2)
-      [cycle | _] = ProductDeBruijnGraph.find_attractors(graph)
-      grid = ProductDeBruijnGraph.cycle_to_spacetime(cycle, 2)
+      svg = ProductDeBruijnGraph.to_spacetime_svg(graph, [])
+      refute svg =~ "<rect"
+    end
 
-      cycle
-      |> Enum.with_index()
-      |> Enum.each(fn {{_a, b}, x} ->
-        Enum.each(0..1, fn t ->
-          assert Enum.at(Enum.at(grid, t), x) == elem(b, t),
-                 "Mismatch at t=#{t}, x=#{x}"
-        end)
-      end)
+    test "cell size option is reflected in rect dimensions" do
+      graph = ProductDeBruijnGraph.build(0, 1)
+      [cycle] = ProductDeBruijnGraph.find_attractors(graph)
+      svg = ProductDeBruijnGraph.to_spacetime_svg(graph, [cycle], cell: 20)
+      assert svg =~ ~s|width="20"|
+      assert svg =~ ~s|height="20"|
     end
   end
 
