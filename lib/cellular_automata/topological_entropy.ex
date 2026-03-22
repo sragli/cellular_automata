@@ -4,6 +4,7 @@ defmodule CellularAutomata.TopologicalEntropy do
   """
   alias CellularAutomata.ProductDeBruijnGraph
 
+  @spec entropy(ProductDeBruijnGraph.t()) :: float()
   def entropy(graph) do
     {_nodes, matrix} = ProductDeBruijnGraph.adjacency_matrix(graph)
 

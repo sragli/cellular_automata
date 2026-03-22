@@ -55,7 +55,7 @@ defmodule CellularAutomata.AttractorNetwork do
       # => %{attractors: [...], representatives: [...], edges: %{0 => [0], 1 => [1]}}
 
   """
-  @spec build(map(), non_neg_integer(), keyword()) :: %{
+  @spec build(ProductDeBruijnGraph.t(), non_neg_integer(), keyword()) :: %{
           attractors: list(list(tuple())),
           representatives: list(list(0 | 1)),
           edges: %{non_neg_integer() => list(non_neg_integer())}
