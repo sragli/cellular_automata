@@ -1,6 +1,14 @@
 defmodule CellularAutomata.TopologicalEntropy do
   @moduledoc """
   Compute topological entropy from a product De Bruijn graph of an ECA rule.
+
+  Entropy measures how quickly the number of valid configurations grows
+
+  * low entropy → simple dynamics
+  * high entropy → chaotic dynamics
+
+  For a finite directed graph, the topological entropy is: $h = log ⁡λ_{max}⁡$, where $λ_{max}$
+  is the spectral radius (largest eigenvalue) of the adjacency matrix.
   """
   alias CellularAutomata.ProductDeBruijnGraph
 
