@@ -294,7 +294,13 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   end
 
   @doc """
-  Computes the strongly-connected components (SCCs) of `graph` using Tarjan's algorithm.
+  Computes the strongly-connected components (SCCs) of `graph` using Kosaraju's algorithm.
+
+  Two DFS passes over the bitset adjacency representation, both O(n²):
+
+  1. DFS on the original graph; nodes are pushed to a stack as they finish,
+     yielding reverse topological order of the condensation DAG.
+  2. DFS on the transposed graph in that order; each DFS tree is exactly one SCC.
   """
   @spec scc(map()) :: list(list(tuple()))
   def scc(graph) do
@@ -308,9 +314,11 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
         |> Enum.reduce(0, fn to, acc -> acc ||| 1 <<< Map.fetch!(index, to) end)
       end)
 
-    all = (1 <<< n) - 1
+    bit_graph_t = transpose(bit_graph)
 
-    do_scc(bit_graph, all, [])
+    finish_order = kosaraju_pass1(bit_graph, n)
+
+    kosaraju_pass2(bit_graph_t, finish_order)
     |> Enum.map(fn idx_list -> Enum.map(idx_list, &Enum.at(nodes, &1)) end)
   end
 
@@ -462,66 +470,98 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
     end
   end
 
-  # Recursive decomposition
-  defp do_scc(_graph, 0, acc), do: acc
-
-  defp do_scc(graph, remaining, acc) do
-    v = pick_node(remaining)
-
-    fwd = reachable_forward(graph, v)
-    bwd = reachable_backward(graph, v)
-
-    scc = fwd &&& bwd
-
-    remaining = remaining &&& bnot(scc)
-
-    do_scc(graph, remaining, [bitset_to_list(scc) | acc])
-  end
-
-  # Pick lowest set bit (count trailing zeros with pure integer arithmetic,
-  # avoiding float precision loss for indices >= 53)
-  defp pick_node(bitset) do
-    lsb = bitset &&& -bitset
-    do_ctz(lsb, 0)
-  end
-
+  # Count trailing zeros — used by Kosaraju DFS and bitset_to_list.
+  # Pure integer arithmetic avoids float precision loss for indices >= 53.
   defp do_ctz(1, acc), do: acc
   defp do_ctz(n, acc), do: do_ctz(n >>> 1, acc + 1)
 
-  # Forward reachability (BFS with bitsets)
-  defp reachable_forward(graph, start) do
-    bfs(graph, 1 <<< start)
-  end
-
-  # Backward reachability using transposed graph
-  defp reachable_backward(graph, start) do
-    graph
-    |> transpose()
-    |> bfs(1 <<< start)
-  end
-
-  # Bitset BFS
-  defp bfs(graph, frontier) do
-    bfs(graph, frontier, frontier)
-  end
-
-  defp bfs(graph, frontier, visited) do
-    next =
-      Enum.with_index(graph)
-      |> Enum.reduce(0, fn {row, i}, acc ->
-        if (frontier &&& 1 <<< i) != 0 do
-          acc ||| row
+  # Kosaraju pass 1: iterative DFS on original graph, build finish-time order.
+  # Nodes are prepended on finish, so the resulting list is in reverse finish order
+  # (last-finished = source SCC of the condensation DAG = head of list).
+  defp kosaraju_pass1(graph, n) do
+    {_visited, finish} =
+      Enum.reduce(0..(n - 1), {0, []}, fn v, {visited, stack} ->
+        if (visited &&& 1 <<< v) != 0 do
+          {visited, stack}
         else
-          acc
+          visited = visited ||| 1 <<< v
+          dfs_finish(graph, [{v, Enum.at(graph, v)}], visited, stack)
         end
       end)
 
-    new = next &&& bnot(visited)
+    finish
+  end
 
-    if new == 0 do
-      visited
+  # Iterative DFS that pushes each node to the finish stack when all its
+  # outgoing edges have been explored.
+  defp dfs_finish(_graph, [], visited, stack), do: {visited, stack}
+
+  defp dfs_finish(graph, [{node, remaining} | frames], visited, stack) do
+    if remaining == 0 do
+      # node finished
+      dfs_finish(graph, frames, visited, [node | stack])
     else
-      bfs(graph, new, visited ||| new)
+      lsb = remaining &&& -remaining
+      neighbor = do_ctz(lsb, 0)
+      remaining = bxor(remaining, lsb)
+
+      if (visited &&& 1 <<< neighbor) != 0 do
+        dfs_finish(graph, [{node, remaining} | frames], visited, stack)
+      else
+        visited = visited ||| 1 <<< neighbor
+
+        dfs_finish(
+          graph,
+          [{neighbor, Enum.at(graph, neighbor)}, {node, remaining} | frames],
+          visited,
+          stack
+        )
+      end
+    end
+  end
+
+  # Kosaraju pass 2: iterate finish_order left-to-right (= reverse finish order),
+  # running DFS on the transposed graph from each unvisited node.
+  # Each DFS tree is exactly one SCC.
+  defp kosaraju_pass2(graph_t, finish_order) do
+    {_visited, sccs} =
+      Enum.reduce(finish_order, {0, []}, fn v, {visited, sccs} ->
+        if (visited &&& 1 <<< v) != 0 do
+          {visited, sccs}
+        else
+          visited = visited ||| 1 <<< v
+
+          {new_visited, scc_bits} =
+            dfs_collect(graph_t, visited, 1 <<< v, [{v, Enum.at(graph_t, v)}])
+
+          {new_visited, [bitset_to_list(scc_bits) | sccs]}
+        end
+      end)
+
+    sccs
+  end
+
+  # Iterative DFS collecting all nodes reachable from the start node into a bitset.
+  defp dfs_collect(_graph, visited, scc, []), do: {visited, scc}
+
+  defp dfs_collect(graph, visited, scc, [{node, remaining} | frames]) do
+    if remaining == 0 do
+      dfs_collect(graph, visited, scc, frames)
+    else
+      lsb = remaining &&& -remaining
+      neighbor = do_ctz(lsb, 0)
+      remaining = bxor(remaining, lsb)
+
+      if (visited &&& 1 <<< neighbor) != 0 do
+        dfs_collect(graph, visited, scc, [{node, remaining} | frames])
+      else
+        visited = visited ||| 1 <<< neighbor
+
+        dfs_collect(graph, visited, scc ||| 1 <<< neighbor, [
+          {neighbor, Enum.at(graph, neighbor)},
+          {node, remaining} | frames
+        ])
+      end
     end
   end
 

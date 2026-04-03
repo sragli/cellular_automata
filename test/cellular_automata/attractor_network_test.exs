@@ -111,7 +111,7 @@ defmodule CellularAutomata.AttractorNetworkTest do
     end
 
     test "representatives are [[1,1,1,0], [0]]", %{result: r} do
-      assert r.representatives == [[1, 1, 1, 0], [0]]
+      assert Enum.sort(r.representatives) == Enum.sort([[1, 1, 1, 0], [0]])
     end
 
     test "each attractor only maps to itself (isolated basins)", %{result: r} do
