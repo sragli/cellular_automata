@@ -42,6 +42,10 @@ defmodule CellularAutomata.MixProject do
   end
 
   defp deps do
-    [{:bdm, "~> 0.3.1"}]
+    [
+      {:bdm, "~> 0.3.1"},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+    ]
   end
 end

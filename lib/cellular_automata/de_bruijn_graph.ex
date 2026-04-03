@@ -68,12 +68,12 @@ defmodule CellularAutomata.DeBruijnGraph do
     nodes = graph |> Map.keys() |> Enum.sort()
     matrix = adjacency_matrix(graph)
 
-    col_headers = nodes |> Enum.map(&inspect/1) |> Enum.join("  ")
+    col_headers = nodes |> Enum.map_join(&inspect/1, "  ")
     IO.puts("         #{col_headers}")
 
     Enum.zip(nodes, matrix)
     |> Enum.each(fn {node, row} ->
-      row_str = row |> Enum.map(&to_string/1) |> Enum.join("        ")
+      row_str = row |> Enum.map_join(&to_string/1, "        ")
       IO.puts("#{inspect(node)}  #{row_str}")
     end)
   end

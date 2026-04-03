@@ -6,6 +6,15 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   """
   import Bitwise
 
+  @typedoc "A k-bit vector represented as a tuple of 0/1 integers."
+  @type bit_vector :: tuple()
+
+  @typedoc "A node in the product De Bruijn graph: a pair of consecutive k-bit time slices."
+  @type graph_node :: {bit_vector(), bit_vector()}
+
+  @typedoc "The product De Bruijn graph: a map from each source node to its list of target nodes."
+  @type t :: %{graph_node() => [graph_node()]}
+
   # Colour palette used to distinguish different attractor cycles across both
   # the graph diagram and the spacetime grid.
   @cycle_colors ~w[#e84040 #4064e8 #28a828 #e87820 #9428c8 #e82896 #28a8c8 #c8c828]
@@ -21,7 +30,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
 
   Returns a map from each source node to its list of target nodes.
   """
-  @spec build(map(), pos_integer) :: map()
+  @spec build(non_neg_integer(), pos_integer()) :: __MODULE__.t()
   def build(rule_id, k) do
     bits = all_bit_vectors(k)
 
@@ -50,7 +59,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
 
   Returns a list of cycles, where each cycle is a list of nodes.
   """
-  @spec find_cycles(map()) :: list(list(tuple()))
+  @spec find_cycles(__MODULE__.t()) :: list(list(__MODULE__.graph_node()))
   def find_cycles(graph) do
     graph
     |> Map.keys()
@@ -66,7 +75,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   of nodes forming a cycle. Raises if the SCC contains no cycle (single node without
   a self-loop).
   """
-  @spec find_cycle(map(), list(tuple())) :: list(tuple())
+  @spec find_cycle(__MODULE__.t(), list(__MODULE__.graph_node())) :: list(__MODULE__.graph_node())
   def find_cycle(graph, scc) do
     scc_set = MapSet.new(scc)
     walk(graph, scc_set, hd(scc), %{}, [])
@@ -81,7 +90,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
 
   Returns a list of cycles, where each cycle is a list of nodes.
   """
-  @spec find_attractors(map()) :: list(list(tuple()))
+  @spec find_attractors(__MODULE__.t()) :: list(list(__MODULE__.graph_node()))
   def find_attractors(graph) do
     graph
     |> scc()
@@ -114,7 +123,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
 
   Returns a UTF-8 SVG binary.
   """
-  @spec to_spacetime_svg(map(), list(0 | 1)) :: binary()
+  @spec to_spacetime_svg(__MODULE__.t(), list(0 | 1)) :: binary()
   def to_spacetime_svg(graph, initial_state \\ []) do
     cell = 12
     padding = 16
@@ -214,7 +223,7 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   (sources and targets) and `matrix` is a list of rows of `0`/`1` integers.
   Entry `matrix[i][j] == 1` means there is an edge from `nodes[i]` to `nodes[j]`.
   """
-  @spec adjacency_matrix(map()) :: {list(tuple()), list(list(integer()))}
+  @spec adjacency_matrix(__MODULE__.t()) :: {list(__MODULE__.graph_node()), list(list(integer()))}
   def adjacency_matrix(graph) do
     nodes = collect_nodes(graph)
 
@@ -417,8 +426,6 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
   end
 
   # Infer the temporal period k from the bit-vector size stored in nodes.
-  defp infer_k(_graph, [[{_a, b} | _] | _]), do: tuple_size(b)
-
   defp infer_k(graph, _cycles) do
     {_a, b} = graph |> Map.keys() |> hd()
     tuple_size(b)
