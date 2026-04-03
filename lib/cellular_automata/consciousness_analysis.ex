@@ -10,8 +10,14 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
 
   In a De Bruijn graph of order `k`, the coarse-graining function ξ is
   *fixed* as k-mer truncation: the order `k` itself determines the level
-  of description.  Richer or coarser descriptions can be obtained by
-  rebuilding the graph at a different `k`.
+  of description.
+  Instead of tracking the entire spacetime history, each node only "sees"
+  a window of exactly `k` consecutive time steps. Any configuration is
+  represented as a `k`-bit tuple — a k-mer. Everything outside that window
+  is discarded.
+  To obtain a finer-grained self-model (one that can describe longer
+  cycles, richer temporal patterns), you rebuild the graph at a larger `k`.
+  We don't adjust ξ independently — `k` and ξ are the same knob.
 
   ## Pipeline
 
@@ -37,6 +43,7 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
   """
 
   import Bitwise
+  alias CellularAutomata.ProductDeBruijnGraph
 
   # ---------------------------------------------------------------------------
   # Public data structures
@@ -134,7 +141,7 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
   * `:min_size`  – minimum cycle length to consider (default: `2`)
   * `:epsilon`   – fixed-point distance threshold (default: `#{@epsilon}`)
   """
-  @spec analyse(map(), keyword()) :: list(%AttractorReport{})
+  @spec analyse(ProductDeBruijnGraph.t(), keyword()) :: list(%AttractorReport{})
   def analyse(graph, opts \\ []) do
     min_size = Keyword.get(opts, :min_size, 2)
     epsilon = Keyword.get(opts, :epsilon, @epsilon)
@@ -157,7 +164,7 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
   Delegates to the same Kosaraju-based SCC used in `ProductDeBruijnGraph`,
   then extracts one cycle per non-trivial SCC.
   """
-  @spec find_attractors(map()) :: list(list(tuple()))
+  @spec find_attractors(ProductDeBruijnGraph.t()) :: list(list(tuple()))
   def find_attractors(graph) do
     graph
     |> scc()
@@ -442,7 +449,7 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
   Returns the subgraph of `graph` induced by `scc_set` (a `MapSet` of nodes).
   Edges to nodes outside `scc_set` are removed.
   """
-  @spec induced_subgraph(map(), MapSet.t()) :: map()
+  @spec induced_subgraph(ProductDeBruijnGraph.t(), MapSet.t()) :: map()
   def induced_subgraph(graph, scc_set) do
     graph
     |> Enum.filter(fn {n, _} -> MapSet.member?(scc_set, n) end)
@@ -456,7 +463,7 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
   Returns the set of nodes reachable from `start` within `graph`
   (inclusive of `start`).
   """
-  @spec reachable_within(map(), tuple()) :: MapSet.t()
+  @spec reachable_within(ProductDeBruijnGraph.t(), tuple()) :: MapSet.t()
   def reachable_within(graph, start) do
     bfs([start], MapSet.new([start]), graph)
   end
@@ -480,7 +487,7 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
   algorithm with a bitset adjacency representation (same approach as
   `ProductDeBruijnGraph.scc/1`).
   """
-  @spec scc(map()) :: list(list(tuple()))
+  @spec scc(ProductDeBruijnGraph.t()) :: list(list(tuple()))
   def scc(graph) do
     nodes = graph |> collect_nodes() |> Enum.sort()
     n = length(nodes)
@@ -509,7 +516,7 @@ defmodule CellularAutomata.ConsciousnessAnalysis do
   Fixes the crash in `ProductDeBruijnGraph.walk/5` that occurs when a node
   in the SCC has no outgoing edges to other SCC members.
   """
-  @spec find_cycle(map(), list(tuple())) :: list(tuple())
+  @spec find_cycle(ProductDeBruijnGraph.t(), list(tuple())) :: list(tuple())
   def find_cycle(graph, scc) do
     scc_set = MapSet.new(scc)
     walk(graph, scc_set, hd(scc), %{}, [])
