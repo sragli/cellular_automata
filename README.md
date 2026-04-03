@@ -6,9 +6,9 @@ Elixir module to create and analyse cellular automata.
 
 * `CellularAutomata.elementary/3`: Creates a 1D (Elementary) Cellular Automaton
 * `CellularAutomata.four_colour/3`: Creates a 1D Four Colour Cellular Automaton
-* `CellularAutomata.Analysis.hamming_distance/2`: Calculates Hamming-distance between two CA states
-* `CellularAutomata.Analysis.lyapunov_exponent/2`: Calculates the Lyapunov exponent between states of two CAs
-* `CellularAutomata.Analysis.bdm_complexity/1`: Calculates the BDM complexity of an ECA
+* `CellularAutomata.hamming_distance/2`: Calculates Hamming-distance between two CA states
+* `CellularAutomata.lyapunov_exponent/2`: Calculates the Lyapunov exponent between states of two CAs
+* `CellularAutomata.bdm_complexity/1`: Calculates the BDM complexity of an ECA
 * `CellularAutomata.DeBruijnGraph`: Creates De Bruijn graphs from cellular automata rules
 * `CellularAutomata.ProductDeBruijnGraph`: Creates product De Bruijn graphs from cellular automata rules
 

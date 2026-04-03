@@ -591,11 +591,11 @@ defmodule CellularAutomata.ProductDeBruijnGraph do
       path = [node | path]
 
       # restrict neighbors to the SCC using MapSet for O(1) membership
-      neighbors =
+      [next | _] =
         Map.get(graph, node, [])
         |> Enum.filter(&MapSet.member?(scc_set, &1))
 
-      walk(graph, scc_set, hd(neighbors), visited, path)
+      walk(graph, scc_set, next, visited, path)
     end
   end
 
