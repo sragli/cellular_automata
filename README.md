@@ -20,7 +20,7 @@ by adding `cellular_automata` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:cellular_automata, "~> 0.3.0"}
+    {:cellular_automata, "~> 0.4.0"}
   ]
 end
 ```

@@ -1,3 +1,13 @@
+## [0.4.0] - 2026-04-03
+
+### Added
+- `CellularAutomata.ConsciousnessAnalysis` module: consciousness detection for product De Bruijn graphs, including attractor reports with feedback strength, observability, transfer entropy, fixed-point distance, and a composite consciousness score
+- `dialyxir` and `credo` dev dependencies for static analysis and linting
+
+### Changed
+- `CellularAutomata.ProductDeBruijnGraph`: added `t()`, `bit_vector()`, and `graph_node()` type definitions; tightened `@spec` for `build/2`
+- Fixed unsafe `hd/1` call in `ProductDeBruijnGraph.walk/5` — replaced with a pattern match that raises a clear `MatchError` on empty neighbour lists
+
 ## [0.3.0] - 2026-03-17
 
 ### Added
